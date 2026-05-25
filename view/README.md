@@ -1,3 +1,3 @@
-# oop-parcel-locker-system
-객체지향을 적용한 무인 택배함 시스템 - view
+## 객체지향을 적용한 무인 택배함 시스템 - view
+
 담당자 : 류채은
