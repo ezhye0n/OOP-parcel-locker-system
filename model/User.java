@@ -12,7 +12,7 @@ import java.util.Objects;
  */
 public class User implements Serializable {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2L;
 
     private final String userId;                // 사용자 고유 ID
     private final String name;                  // 사용자 이름
@@ -38,12 +38,15 @@ public class User implements Serializable {
 
     /**
      * 사용자의 보관 내역에 택배를 추가한다.
-     * null 값이 들어가지 못하게 하여 내역 데이터의 무결성을 유지한다.
+     * null 값과 중복 객체가 들어가지 못하게 하여 내역 데이터의 무결성을 유지한다.
      *
      * @param pkg 추가할 Package
      */
     public void addPackage(Package pkg) {
-        packageHistory.add(Objects.requireNonNull(pkg, "추가할 Package는 null일 수 없습니다."));
+        Package packageToAdd = Objects.requireNonNull(pkg, "추가할 Package는 null일 수 없습니다.");
+        if (!packageHistory.contains(packageToAdd)) {
+            packageHistory.add(packageToAdd);
+        }
     }
 
     /**

@@ -6,14 +6,14 @@ package model;
  */
 public class SmallLocker extends Locker {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2L;
 
     public SmallLocker(String lockerId) {
-        super(lockerId, "소형");
+        super(lockerId, LockerSize.SMALL);
     }
 
     @Override
     public String getSizeDescription() {
-        return "소형 (가로 20cm 이하)";
+        return LockerSize.SMALL.getDescription();
     }
 }

@@ -7,19 +7,21 @@ import java.time.temporal.ChronoUnit;
 /**
  * 택배 한 건의 정보를 저장하고 상태 규칙을 관리하는 Model 클래스.
  *
- * <p>송장번호, 수령인, 보관 시각, 인증코드, 만료 여부, 수령 완료 여부를 가진다.
+ * <p>송장번호, 수령인, 보관 시각, 인증코드, 현재 상태를 가진다.
  * 인증코드는 외부에 직접 반환하지 않고 verifyAuthCode 메서드를 통해서만 검증한다.</p>
+ *
+ * <p>상태는 boolean 여러 개가 아니라 PackageStatus enum 하나로 관리한다. 따라서
+ * "만료이면서 동시에 수령 완료" 같은 모순된 상태가 만들어지지 않는다.</p>
  */
 public class Package implements Serializable {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2L;
 
     private final String trackingNumber;    // 송장번호 (고유 식별자)
     private final String recipient;         // 수령인 이름
     private final LocalDateTime storedAt;   // 보관 시각
     private final String authCode;          // 6자리 인증코드. 외부 노출 금지
-    private boolean expired;                // 만료 여부
-    private boolean pickedUp;               // 수령 완료 여부
+    private PackageStatus status;           // 현재 택배 상태
 
     /**
      * @param trackingNumber 송장번호
@@ -31,8 +33,7 @@ public class Package implements Serializable {
         this.recipient = requireText(recipient, "recipient");
         this.authCode = requireValidAuthCode(authCode);
         this.storedAt = LocalDateTime.now();
-        this.expired = false;
-        this.pickedUp = false;
+        this.status = PackageStatus.STORED;
     }
 
     public String getTrackingNumber() {
@@ -47,12 +48,20 @@ public class Package implements Serializable {
         return storedAt;
     }
 
+    public PackageStatus getStatus() {
+        return status;
+    }
+
+    public boolean isStored() {
+        return status == PackageStatus.STORED;
+    }
+
     public boolean isExpired() {
-        return expired;
+        return status == PackageStatus.EXPIRED;
     }
 
     public boolean isPickedUp() {
-        return pickedUp;
+        return status == PackageStatus.PICKED_UP;
     }
 
     /**
@@ -85,13 +94,13 @@ public class Package implements Serializable {
 
     /**
      * 택배를 만료 상태로 전환한다.
-     * 이미 수령 완료된 택배는 다시 만료 처리하지 않는다.
+     * 이미 수령 완료된 택배는 만료 상태로 되돌리지 않는다.
      */
     public void markAsExpired() {
-        if (pickedUp) {
+        if (status == PackageStatus.PICKED_UP) {
             return;
         }
-        this.expired = true;
+        this.status = PackageStatus.EXPIRED;
     }
 
     /**
@@ -99,10 +108,10 @@ public class Package implements Serializable {
      * 만료된 택배는 일반 수령 완료로 바꿀 수 없도록 보호한다.
      */
     public void markAsPickedUp() {
-        if (expired) {
+        if (status == PackageStatus.EXPIRED) {
             throw new IllegalStateException("만료된 택배는 수령 완료 처리할 수 없습니다.");
         }
-        this.pickedUp = true;
+        this.status = PackageStatus.PICKED_UP;
     }
 
     /**
@@ -111,13 +120,7 @@ public class Package implements Serializable {
      * @return 만료, 수령 완료, 사용 중 중 하나
      */
     public String getStatusText() {
-        if (expired) {
-            return "만료";
-        }
-        if (pickedUp) {
-            return "수령 완료";
-        }
-        return "사용 중";
+        return status.getLabel();
     }
 
     private static String requireText(String value, String fieldName) {

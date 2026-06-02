@@ -14,6 +14,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 전체 택배함 데이터를 관리하고 파일 I/O를 담당하는 Repository 클래스.
@@ -28,7 +29,7 @@ import java.util.Map;
  */
 public class LockerRepository implements Serializable {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2L;
 
     private static final String FILE_PATH = "lockers.dat";
     private static final int DEFAULT_LOCKER_COUNT_PER_SIZE = 5;
@@ -90,11 +91,21 @@ public class LockerRepository implements Serializable {
      * @return 해당 크기의 빈 Locker 리스트
      */
     public synchronized List<Locker> getAvailableLockers(String size) {
-        String normalizedSize = normalizeSize(size);
+        return getAvailableLockers(LockerSize.fromLabel(size));
+    }
+
+    /**
+     * 특정 크기의 빈 택배함 목록을 타입 안전한 방식으로 반환한다.
+     *
+     * @param size LockerSize enum
+     * @return 해당 크기의 빈 Locker 리스트
+     */
+    public synchronized List<Locker> getAvailableLockers(LockerSize size) {
+        Objects.requireNonNull(size, "size는 null일 수 없습니다.");
         List<Locker> result = new ArrayList<>();
 
         for (Locker locker : lockers.values()) {
-            if (locker.getSize().equals(normalizedSize) && locker.isAvailable()) {
+            if (locker.getLockerSize() == size && locker.isAvailable()) {
                 result.add(locker);
             }
         }
@@ -147,6 +158,49 @@ public class LockerRepository implements Serializable {
     }
 
     /**
+     * 보관 기간을 초과한 택배가 들어 있는 칸 목록을 반환한다.
+     * ExpiryMonitor가 기간 계산 방식을 직접 알지 않아도 되도록 Model에 규칙을 둔다.
+     *
+     * @param maxStorageDays 최대 보관 일수
+     * @return 보관 기간을 초과한 Locker 리스트
+     */
+    public synchronized List<Locker> getOverdueLockers(int maxStorageDays) {
+        List<Locker> result = new ArrayList<>();
+
+        for (Locker locker : lockers.values()) {
+            if (locker.hasOverduePackage(maxStorageDays)) {
+                result.add(locker);
+            }
+        }
+
+        sortByLockerId(result);
+        return result;
+    }
+
+    /**
+     * 보관 기간을 초과한 택배들을 만료 상태로 전환한다.
+     *
+     * @param maxStorageDays 최대 보관 일수
+     * @return 새로 만료 처리된 택배 수
+     */
+    public synchronized int markOverduePackagesAsExpired(int maxStorageDays) {
+        int expiredCount = 0;
+
+        for (Locker locker : lockers.values()) {
+            Package pkg = locker.getAssignedPackage();
+            if (pkg != null && pkg.isStored() && pkg.isOverStorageLimit(maxStorageDays)) {
+                pkg.markAsExpired();
+                expiredCount++;
+            }
+        }
+
+        if (expiredCount > 0) {
+            save();
+        }
+        return expiredCount;
+    }
+
+    /**
      * 기본 택배함 목록으로 초기화한다.
      * 테스트나 파일 복구 상황에서 사용한다.
      */
@@ -154,26 +208,33 @@ public class LockerRepository implements Serializable {
         lockers.clear();
 
         for (int i = 1; i <= DEFAULT_LOCKER_COUNT_PER_SIZE; i++) {
-            addLocker(new SmallLocker(String.format("S-%02d", i)));
-            addLocker(new MediumLocker(String.format("M-%02d", i)));
-            addLocker(new LargeLocker(String.format("L-%02d", i)));
+            for (LockerSize size : LockerSize.values()) {
+                addLocker(createLocker(size, i));
+            }
+        }
+    }
+
+    private Locker createLocker(LockerSize size, int index) {
+        String lockerId = String.format("%s-%02d", size.getIdPrefix(), index);
+        switch (size) {
+            case SMALL:
+                return new SmallLocker(lockerId);
+            case MEDIUM:
+                return new MediumLocker(lockerId);
+            case LARGE:
+                return new LargeLocker(lockerId);
+            default:
+                throw new IllegalArgumentException("지원하지 않는 칸 크기입니다: " + size);
         }
     }
 
     private void addLocker(Locker locker) {
-        lockers.put(locker.getLockerId(), locker);
-    }
-
-    private String normalizeSize(String size) {
-        if (size == null || size.trim().isEmpty()) {
-            throw new IllegalArgumentException("칸 크기는 비어 있을 수 없습니다.");
+        Objects.requireNonNull(locker, "locker는 null일 수 없습니다.");
+        String lockerId = locker.getLockerId();
+        if (lockers.containsKey(lockerId)) {
+            throw new IllegalArgumentException("중복된 택배함 ID입니다: " + lockerId);
         }
-
-        String normalizedSize = size.trim();
-        if (!normalizedSize.equals("소형") && !normalizedSize.equals("중형") && !normalizedSize.equals("대형")) {
-            throw new IllegalArgumentException("지원하지 않는 칸 크기입니다: " + size);
-        }
-        return normalizedSize;
+        lockers.put(lockerId, locker);
     }
 
     private void sortByLockerId(List<Locker> lockerList) {

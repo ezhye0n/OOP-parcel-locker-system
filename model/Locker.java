@@ -12,20 +12,20 @@ import java.util.Objects;
  */
 public abstract class Locker implements Serializable {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2L;
 
     private final String lockerId;       // 칸 고유 ID (예: S-01, M-03, L-05)
-    private final String size;           // 칸 크기 (소형, 중형, 대형)
+    private final LockerSize size;       // 칸 크기. 문자열 대신 enum으로 관리하여 무결성을 높인다.
     private boolean occupied;            // 사용 중 여부
     private Package assignedPackage;     // 현재 배정된 택배. 비어 있으면 null
 
     /**
      * @param lockerId 칸 고유 ID
-     * @param size     칸 크기
+     * @param size     칸 크기 enum
      */
-    protected Locker(String lockerId, String size) {
+    protected Locker(String lockerId, LockerSize size) {
         this.lockerId = requireText(lockerId, "lockerId");
-        this.size = requireText(size, "size");
+        this.size = Objects.requireNonNull(size, "size는 null일 수 없습니다.");
         this.occupied = false;
         this.assignedPackage = null;
     }
@@ -34,7 +34,21 @@ public abstract class Locker implements Serializable {
         return lockerId;
     }
 
+    /**
+     * 기존 Controller/View와의 호환을 위해 한글 크기 문자열을 반환한다.
+     *
+     * @return 소형, 중형, 대형 중 하나
+     */
     public String getSize() {
+        return size.getLabel();
+    }
+
+    /**
+     * Model 내부 로직에서 사용할 수 있는 타입 안전한 크기 값을 반환한다.
+     *
+     * @return LockerSize enum
+     */
+    public LockerSize getLockerSize() {
         return size;
     }
 
@@ -68,6 +82,9 @@ public abstract class Locker implements Serializable {
         if (!isAvailable()) {
             throw new IllegalStateException("이미 사용 중인 택배함입니다: " + lockerId);
         }
+        if (!pkg.isStored()) {
+            throw new IllegalStateException("보관 가능한 상태의 택배만 배정할 수 있습니다: " + pkg.getStatusText());
+        }
 
         this.assignedPackage = pkg;
         this.occupied = true;
@@ -89,6 +106,18 @@ public abstract class Locker implements Serializable {
      */
     public boolean hasExpiredPackage() {
         return occupied && assignedPackage != null && assignedPackage.isExpired();
+    }
+
+    /**
+     * 이 칸에 들어 있는 택배가 보관 기간을 초과했는지 반환한다.
+     *
+     * @param maxStorageDays 최대 보관 일수
+     * @return 보관 기간을 초과한 택배가 있으면 true
+     */
+    public boolean hasOverduePackage(int maxStorageDays) {
+        return occupied
+            && assignedPackage != null
+            && assignedPackage.isOverStorageLimit(maxStorageDays);
     }
 
     /**
@@ -114,7 +143,7 @@ public abstract class Locker implements Serializable {
      */
     public abstract String getSizeDescription();
 
-    private static String requireText(String value, String fieldName) {
+    protected static String requireText(String value, String fieldName) {
         if (value == null || value.trim().isEmpty()) {
             throw new IllegalArgumentException(fieldName + "는 비어 있을 수 없습니다.");
         }
@@ -123,6 +152,6 @@ public abstract class Locker implements Serializable {
 
     @Override
     public String toString() {
-        return lockerId + " / " + size + " / " + getStatusText();
+        return lockerId + " / " + getSize() + " / " + getStatusText();
     }
 }
