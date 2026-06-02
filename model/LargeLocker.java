@@ -1,9 +1,12 @@
 package model;
 
 /**
- * 대형 칸. Locker를 상속받아 대형 크기 정보를 제공한다.
+ * 대형 택배함.
+ * 부피가 큰 택배 상자 보관에 사용된다.
  */
 public class LargeLocker extends Locker {
+
+    private static final long serialVersionUID = 1L;
 
     public LargeLocker(String lockerId) {
         super(lockerId, "대형");
