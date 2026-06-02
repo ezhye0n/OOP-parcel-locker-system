@@ -6,13 +6,12 @@ import java.awt.event.*;
 
 /**
  * 프로그램 시작 시 가장 먼저 표시되는 메인 메뉴 화면.
- * 보관 / 수령 / 내 보관 내역 / 관리자 모드 버튼을 제공한다.
+ * 보관 / 수령 / 관리자 모드 버튼을 제공한다.
  */
 public class MainMenuView extends JFrame {
 
     private JButton depositButton;    // 택배 보관 버튼
     private JButton pickupButton;     // 택배 수령 버튼
-    private JButton historyButton;    // 보관 내역 조회 버튼
     private JButton adminButton;      // 관리자 모드 버튼
 
     public MainMenuView() {
@@ -38,20 +37,17 @@ public class MainMenuView extends JFrame {
         // 버튼 생성
         depositButton = new JButton("택배 보관");
         pickupButton = new JButton("택배 수령");
-        historyButton = new JButton("내 보관 내역");
         adminButton = new JButton("관리자 모드");
 
         // 키오스크 느낌을 위해 버튼 글꼴을 크게 설정
         depositButton.setFont(new Font("Dialog", Font.BOLD, 18));
         pickupButton.setFont(new Font("Dialog", Font.BOLD, 18));
-        historyButton.setFont(new Font("Dialog", Font.BOLD, 18));
         adminButton.setFont(new Font("Dialog", Font.BOLD, 18));
 
         // 버튼들을 세로로 중앙 영역에 배치
-        JPanel buttonPanel = new JPanel(new GridLayout(4, 1, 15, 15));
+        JPanel buttonPanel = new JPanel(new GridLayout(3, 1, 15, 15));
         buttonPanel.add(depositButton);
         buttonPanel.add(pickupButton);
-        buttonPanel.add(historyButton);
         buttonPanel.add(adminButton);
 
         // 프레임에 제목 영역과 버튼 영역 추가
@@ -59,7 +55,7 @@ public class MainMenuView extends JFrame {
         c.add(buttonPanel, BorderLayout.CENTER);
 
         // 프레임 크기 설정 및 화면 출력
-        setSize(420, 360);
+        setSize(420, 320);
         setVisible(true);
     }
 
@@ -79,15 +75,6 @@ public class MainMenuView extends JFrame {
      */
     public void addPickupListener(ActionListener listener) {
         pickupButton.addActionListener(listener);
-    }
-
-    /**
-     * 보관 내역 버튼 클릭 시 실행할 동작을 Controller에서 등록한다.
-     *
-     * @param listener 버튼 클릭 이벤트 리스너
-     */
-    public void addHistoryListener(ActionListener listener) {
-        historyButton.addActionListener(listener);
     }
 
     /**
