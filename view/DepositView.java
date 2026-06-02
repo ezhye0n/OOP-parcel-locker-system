@@ -1,6 +1,8 @@
 package view;
 
 import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
 
 /**
  * 택배 보관 요청 화면.
@@ -15,7 +17,52 @@ public class DepositView extends JFrame {
     private JLabel resultLabel;          // 결과 메시지 출력 (인증코드, 오류 등)
 
     public DepositView() {
-        // TODO: UI 초기화
+        // 프레임 기본 설정
+        setTitle("택배 보관");
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+
+        // 컨텐트팬을 가져와 배치관리자 설정
+        Container c = getContentPane();
+        c.setLayout(new BorderLayout(10, 10));
+
+        // 제목 영역
+        JLabel titleLabel = new JLabel("택배 보관", SwingConstants.CENTER);
+        titleLabel.setFont(new Font("Dialog", Font.BOLD, 24));
+
+        // 입력 영역
+        JPanel inputPanel = new JPanel(new GridLayout(2, 2, 10, 10));
+
+        JLabel recipientLabel = new JLabel("수령인 이름");
+        recipientField = new JTextField(15);
+
+        JLabel sizeLabel = new JLabel("보관함 크기");
+        String[] sizes = {"소형", "중형", "대형"};
+        sizeCombo = new JComboBox<String>(sizes);
+
+        inputPanel.add(recipientLabel);
+        inputPanel.add(recipientField);
+        inputPanel.add(sizeLabel);
+        inputPanel.add(sizeCombo);
+
+        // 버튼과 결과 메시지 영역
+        JPanel bottomPanel = new JPanel(new GridLayout(2, 1, 10, 10));
+
+        depositButton = new JButton("보관하기");
+        depositButton.setFont(new Font("Dialog", Font.BOLD, 18));
+
+        resultLabel = new JLabel("보관 결과가 여기에 표시됩니다.", SwingConstants.CENTER);
+
+        bottomPanel.add(depositButton);
+        bottomPanel.add(resultLabel);
+
+        // 프레임에 컴포넌트 추가
+        c.add(titleLabel, BorderLayout.NORTH);
+        c.add(inputPanel, BorderLayout.CENTER);
+        c.add(bottomPanel, BorderLayout.SOUTH);
+
+        // 프레임 크기 설정 및 화면 출력
+        setSize(420, 280);
+        setVisible(true);
     }
 
     /**
@@ -24,8 +71,7 @@ public class DepositView extends JFrame {
      * @return 수령인 이름 문자열
      */
     public String getRecipient() {
-        // TODO: 구현 예정
-        return null;
+        return recipientField.getText();
     }
 
     /**
@@ -34,8 +80,7 @@ public class DepositView extends JFrame {
      * @return 칸 크기 ("소형" / "중형" / "대형")
      */
     public String getSelectedSize() {
-        // TODO: 구현 예정
-        return null;
+        return (String) sizeCombo.getSelectedItem();
     }
 
     /**
@@ -45,7 +90,7 @@ public class DepositView extends JFrame {
      * @param message 표시할 메시지
      */
     public void showResult(String message) {
-        // TODO: 구현 예정
+        resultLabel.setText(message);
     }
 
     /**
@@ -53,7 +98,7 @@ public class DepositView extends JFrame {
      *
      * @param listener 버튼 클릭 이벤트 리스너
      */
-    public void addDepositListener(java.awt.event.ActionListener listener) {
+    public void addDepositListener(ActionListener listener) {
         depositButton.addActionListener(listener);
     }
 }
