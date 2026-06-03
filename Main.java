@@ -46,7 +46,6 @@ public class Main {
                 DepositView depositView = new DepositView();
                 DepositController depositController = new DepositController(lockerRepository, depositView);
 
-                // 보관 버튼 클릭 시 Controller에 위임
                 depositView.addDepositListener(depositEvent ->
                     depositController.handleDeposit(
                         depositView.getRecipient(),
@@ -60,7 +59,6 @@ public class Main {
                 PickupView pickupView = new PickupView();
                 PickupController pickupController = new PickupController(lockerRepository, pickupView);
 
-                // 수령 버튼 클릭 시 Controller에 위임
                 pickupView.addPickupListener(pickupEvent ->
                     pickupController.handlePickup(pickupView.getAuthCode())
                 );
@@ -76,9 +74,7 @@ public class Main {
                 );
 
                 // 취소 버튼 또는 빈 입력 처리
-                if (password == null || password.trim().isEmpty()) {
-                    return;
-                }
+                if (password == null || password.trim().isEmpty()) return;
 
                 AdminView adminView = new AdminView();
                 AdminController adminController = new AdminController(lockerRepository, adminView);
@@ -98,12 +94,12 @@ public class Main {
                 // 현황 초기 로드
                 adminController.loadLockerStatus();
 
-                // 새로고침 버튼 클릭 시 현황 다시 불러오기
+                // 새로고침 버튼: 현황 다시 불러오기
                 adminView.addRefreshListener(refreshEvent ->
                     adminController.loadLockerStatus()
                 );
 
-                // 뒤로가기 버튼 클릭 시 AdminView 닫기
+                // 뒤로가기 버튼: AdminView 닫기
                 adminView.addBackListener(backEvent ->
                     adminView.dispose()
                 );

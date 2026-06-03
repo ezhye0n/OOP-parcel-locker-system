@@ -11,7 +11,7 @@ import java.util.List;
 
 /**
  * 관리자 전용 화면.
- * 전체 칸 현황을 JTable로 표시하고 만료 택배 강제 해제 기능을 제공한다.
+ * 전체 칸 현황을 JTable로 표시하고 새로고침 기능을 제공한다.
  *
  * MVC 역할 분리 원칙:
  * Controller로부터 List<Locker>를 받아 테이블 데이터로 변환하는 책임은 View가 가진다.
@@ -27,7 +27,6 @@ public class AdminView extends JFrame {
     private JTable lockerTable;
     private DefaultTableModel tableModel;
     private JButton refreshButton;
-    private JButton forceReleaseButton;
     private JButton backButton;
 
     /** 테이블 컬럼 헤더 */
@@ -71,22 +70,18 @@ public class AdminView extends JFrame {
         };
         lockerTable = new JTable(tableModel);
         lockerTable.setRowHeight(24);
-        lockerTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         lockerTable.getTableHeader().setReorderingAllowed(false);
         JScrollPane scrollPane = new JScrollPane(lockerTable);
 
         // 버튼 영역
-        refreshButton      = new JButton("새로고침");
-        forceReleaseButton = new JButton("강제 해제");
-        backButton         = new JButton("뒤로가기");
+        refreshButton = new JButton("새로고침");
+        backButton    = new JButton("뒤로가기");
 
         refreshButton.setFont(new Font("Dialog", Font.BOLD, 15));
-        forceReleaseButton.setFont(new Font("Dialog", Font.BOLD, 15));
         backButton.setFont(new Font("Dialog", Font.BOLD, 15));
 
-        JPanel buttonPanel = new JPanel(new GridLayout(1, 3, 10, 10));
+        JPanel buttonPanel = new JPanel(new GridLayout(1, 2, 10, 10));
         buttonPanel.add(refreshButton);
-        buttonPanel.add(forceReleaseButton);
         buttonPanel.add(backButton);
 
         c.add(topPanel,    BorderLayout.NORTH);
@@ -109,7 +104,6 @@ public class AdminView extends JFrame {
         int empty    = 0;
         int expired  = 0;
 
-        // 기존 테이블 데이터 초기화
         tableModel.setRowCount(0);
 
         for (Locker locker : lockers) {
@@ -131,7 +125,6 @@ public class AdminView extends JFrame {
                 storedDate = pkg.getStoredAt().toLocalDate().toString();
             }
 
-            // 상태 문자열은 Model(Locker)이 결정한다
             tableModel.addRow(new Object[]{
                 locker.getLockerId(),
                 locker.getSizeDescription(),
@@ -141,24 +134,10 @@ public class AdminView extends JFrame {
             });
         }
 
-        // 요약 레이블 갱신
         totalLabel.setText("전체 보관함 수: " + total);
         usedLabel.setText("사용 중: " + occupied);
         emptyLabel.setText("빈 보관함: " + empty);
         expiredLabel.setText("만료 보관함: " + expired);
-    }
-
-    /**
-     * 테이블에서 현재 선택된 칸의 ID를 반환한다.
-     * 강제 해제 버튼 클릭 시 Controller에서 호출한다.
-     * 만료 여부 검증은 Controller가 담당한다.
-     *
-     * @return 선택된 칸 ID, 선택 없으면 null
-     */
-    public String getSelectedLockerId() {
-        int selectedRow = lockerTable.getSelectedRow();
-        if (selectedRow == -1) return null;
-        return (String) tableModel.getValueAt(selectedRow, 0);
     }
 
     /**
@@ -171,31 +150,11 @@ public class AdminView extends JFrame {
     }
 
     /**
-     * 강제 해제 버튼 클릭 시 실행할 동작을 Controller에서 등록한다.
-     * 만료 상태가 아닌 칸을 선택하고 클릭하면 Controller가 검증 후 거부한다.
-     *
-     * @param listener 버튼 클릭 이벤트 리스너
-     */
-    public void addForceReleaseListener(ActionListener listener) {
-        forceReleaseButton.addActionListener(listener);
-    }
-
-    /**
      * 뒤로가기 버튼 클릭 시 실행할 동작을 Controller에서 등록한다.
      *
      * @param listener 버튼 클릭 이벤트 리스너
      */
     public void addBackListener(ActionListener listener) {
         backButton.addActionListener(listener);
-    }
-
-    /**
-     * 오류 메시지를 팝업으로 표시한다.
-     * Controller가 검증 실패 시 사용자에게 안내하기 위해 호출한다.
-     *
-     * @param message 표시할 오류 메시지
-     */
-    public void showError(String message) {
-        JOptionPane.showMessageDialog(this, message, "알림", JOptionPane.WARNING_MESSAGE);
     }
 }

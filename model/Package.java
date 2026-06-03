@@ -89,7 +89,7 @@ public class Package implements Serializable {
             throw new IllegalArgumentException("maxStorageDays는 음수일 수 없습니다.");
         }
         long storedDays = ChronoUnit.DAYS.between(storedAt, LocalDateTime.now());
-        return storedDays > maxStorageDays;
+        return storedDays >= maxStorageDays;
     }
 
     /**

@@ -20,11 +20,11 @@ public class ExpiryMonitor implements Runnable {
     // ExpiryMonitor 스레드가 변경을 즉시 감지하도록 보장한다.
     private volatile boolean stopped = false;
 
-    /** 만료 감지 주기 (1분) */
-    private static final long CHECK_INTERVAL_MS = 60_000;
+    /** 만료 감지 주기 (테스트용 5초) */
+    private static final long CHECK_INTERVAL_MS = 5_000;
 
-    /** 보관 기간 제한 (일) */
-    private static final int MAX_STORAGE_DAYS = 3;
+    /** 보관 기간 제한 (테스트용 0일) */
+    private static final int MAX_STORAGE_DAYS = 0;
 
     public ExpiryMonitor(LockerRepository lockerRepository) {
         this.lockerRepository = lockerRepository;
