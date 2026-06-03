@@ -1,6 +1,7 @@
 package controller;
 
 import model.Locker;
+import model.Package;
 import model.LockerRepository;
 import view.AdminView;
 
@@ -8,8 +9,11 @@ import java.util.List;
 
 /**
  * 관리자 기능을 처리하는 Controller.
- * 전체 칸 현황 조회, 만료 택배 강제 처리 등
- * 일반 사용자에게는 노출되지 않는 관리 기능을 담당한다.
+ * 전체 칸 현황을 집계하여 AdminView에 전달한다.
+ *
+ * MVC 역할 분리 원칙:
+ * Controller는 데이터 집계와 배열 변환만 담당하고,
+ * 화면 표시 방식(JTable 구성, 셀 편집 여부 등)은 AdminView가 결정한다.
  */
 public class AdminController {
 
@@ -36,102 +40,71 @@ public class AdminController {
     }
 
     /**
-     * 전체 칸 목록을 불러와 AdminView에 전달한다.
-     * 사용 중 / 빈 칸 / 만료 상태를 구분하여 테이블 데이터로 변환한다.
+     * 전체 칸 현황을 집계하여 AdminView에 전달한다.
+     *
+     * 처리 순서:
+     * 1. 전체/사용 중/빈 칸/만료 개수를 집계하여 updateSummary()로 전달
+     * 2. 각 칸의 데이터를 2차원 배열로 변환하여 updateTable()로 전달
+     *
+     * Controller는 데이터 배열만 만들고,
+     * 이를 어떻게 보여줄지(JTable)는 AdminView가 결정한다.
      */
     public void loadLockerStatus() {
         List<Locker> allLockers = lockerRepository.getAllLockers();
 
+        // 현황 카운트 집계
+        int totalCount   = allLockers.size();
+        int occupiedCount = 0;
+        int emptyCount   = 0;
+        int expiredCount = 0;
+
         // 테이블에 표시할 데이터 배열 생성
-        // 컬럼: 칸 번호 / 크기 / 수령인 / 보관 시각 / 상태
-        Object[][] tableData = new Object[allLockers.size()][5];
+        // 컬럼 순서: 칸 번호 / 크기 / 수령인 / 보관일 / 상태
+        Object[][] tableData = new Object[totalCount][5];
 
         for (int i = 0; i < allLockers.size(); i++) {
             Locker locker = allLockers.get(i);
             tableData[i][0] = locker.getLockerId();
             tableData[i][1] = locker.getSizeDescription();
 
-            if (locker.isOccupied() && locker.getAssignedPackage() != null) {
-                tableData[i][2] = locker.getAssignedPackage().getRecipient();
-                tableData[i][3] = locker.getAssignedPackage().getStoredAt().toString();
-                tableData[i][4] = locker.getAssignedPackage().isExpired() ? "만료" : "사용 중";
-            } else {
+            if (!locker.isOccupied()) {
+                // 빈 칸
+                emptyCount++;
                 tableData[i][2] = "-";
                 tableData[i][3] = "-";
                 tableData[i][4] = "비어있음";
+            } else {
+                Package pkg = locker.getAssignedPackage();
+                if (pkg != null && pkg.isExpired()) {
+                    // 만료된 칸
+                    expiredCount++;
+                    occupiedCount++;
+                    tableData[i][2] = pkg.getRecipient();
+                    tableData[i][3] = pkg.getStoredAt().toLocalDate().toString();
+                    tableData[i][4] = "만료";
+                } else if (pkg != null) {
+                    // 사용 중인 칸
+                    occupiedCount++;
+                    tableData[i][2] = pkg.getRecipient();
+                    tableData[i][3] = pkg.getStoredAt().toLocalDate().toString();
+                    tableData[i][4] = "사용 중";
+                }
             }
         }
 
+        // 요약 정보 View에 전달
+        adminView.updateSummary(totalCount, occupiedCount, emptyCount, expiredCount);
+
+        // 테이블 데이터 View에 전달 — 표시 방식은 AdminView가 결정
         adminView.updateTable(tableData);
     }
 
     /**
-     * 관리자가 선택한 만료 칸을 강제로 비운다.
-     * 해당 칸의 Package를 제거하고 상태를 "비어있음"으로 초기화한다.
-     * 이미 비어있는 칸을 선택하면 오류 메시지를 표시한다.
-     *
-     * @param lockerId 강제 처리할 칸의 ID
-     */
-    public void forceRelease(String lockerId) {
-        if (lockerId == null) {
-            return;
-        }
-
-        synchronized (lockerRepository) {
-            Locker locker = lockerRepository.findById(lockerId);
-
-            if (locker == null) return;
-
-            // 이미 비어있는 칸은 처리하지 않음
-            if (!locker.isOccupied()) {
-                adminView.updateTable(getCurrentTableData());
-                return;
-            }
-
-            // 칸 강제 해제
-            locker.release();
-            lockerRepository.save();
-        }
-
-        // 처리 후 화면 갱신
-        loadLockerStatus();
-    }
-
-    /**
      * 만료 상태인 칸 목록만 필터링하여 반환한다.
-     * AdminView의 만료 목록 표시에 사용된다.
      *
      * @return 만료된 Locker 리스트
      */
     public List<Locker> getExpiredList() {
         return lockerRepository.getExpiredLockers();
-    }
-
-    /**
-     * 현재 전체 칸 상태를 테이블 데이터로 반환한다.
-     * forceRelease 후 화면 갱신에 사용된다.
-     *
-     * @return 테이블 표시용 2차원 배열
-     */
-    private Object[][] getCurrentTableData() {
-        List<Locker> allLockers = lockerRepository.getAllLockers();
-        Object[][] tableData = new Object[allLockers.size()][5];
-
-        for (int i = 0; i < allLockers.size(); i++) {
-            Locker locker = allLockers.get(i);
-            tableData[i][0] = locker.getLockerId();
-            tableData[i][1] = locker.getSizeDescription();
-
-            if (locker.isOccupied() && locker.getAssignedPackage() != null) {
-                tableData[i][2] = locker.getAssignedPackage().getRecipient();
-                tableData[i][3] = locker.getAssignedPackage().getStoredAt().toString();
-                tableData[i][4] = locker.getAssignedPackage().isExpired() ? "만료" : "사용 중";
-            } else {
-                tableData[i][2] = "-";
-                tableData[i][3] = "-";
-                tableData[i][4] = "비어있음";
-            }
-        }
-        return tableData;
     }
 }
