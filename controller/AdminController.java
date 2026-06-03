@@ -8,13 +8,11 @@ import java.util.List;
 
 /**
  * 관리자 기능을 처리하는 Controller.
- * 전체 칸 현황 데이터를 Model에서 가져와 View에 전달한다.
+ * 전체 칸 현황 조회 및 만료 택배 강제 해제를 담당한다.
  *
  * MVC 역할 분리 원칙:
- * Controller는 데이터를 가져오는 흐름만 제어하고,
- * 데이터를 어떻게 표시할지(JTable 구성, 배열 변환)는 AdminView가 결정한다.
- * Controller는 Model 타입(List<Locker>)을 그대로 View에 넘기므로
- * View의 표시 방식이 바뀌어도 Controller를 수정하지 않아도 된다.
+ * Controller는 데이터 흐름과 검증 로직만 담당하고,
+ * 화면 표시 방식은 AdminView가 결정한다.
  *
  * 동기화 전략:
  * LockerRepository의 public 메서드가 이미 synchronized로 선언되어 있으므로,
@@ -51,10 +49,38 @@ public class AdminController {
      */
     public void loadLockerStatus() {
         List<Locker> allLockers = lockerRepository.getAllLockers();
-
-        // View에 Locker 리스트를 그대로 전달한다.
-        // 배열 변환, 상태 문자열 생성 등 표시 관련 처리는 AdminView가 담당한다.
         adminView.updateView(allLockers);
+    }
+
+    /**
+     * 선택된 칸을 강제로 비운다.
+     * 만료 상태인 칸만 해제 가능하며, 그 외의 경우 View에 오류 메시지를 전달한다.
+     * 처리 후 화면을 자동으로 갱신한다.
+     *
+     * @param lockerId 강제 해제할 칸의 ID
+     */
+    public void forceRelease(String lockerId) {
+        // 선택된 칸이 없으면 안내
+        if (lockerId == null) {
+            adminView.showError("해제할 칸을 선택해주세요.");
+            return;
+        }
+
+        Locker locker = lockerRepository.findById(lockerId);
+        if (locker == null) return;
+
+        // 만료 상태인 칸만 강제 해제 가능
+        if (!locker.hasExpiredPackage()) {
+            adminView.showError("만료된 택배가 있는 칸만 강제 해제할 수 있습니다.");
+            return;
+        }
+
+        // 칸 해제 및 파일 저장
+        locker.release();
+        lockerRepository.save();
+
+        // 처리 후 화면 자동 갱신
+        loadLockerStatus();
     }
 
     /**
