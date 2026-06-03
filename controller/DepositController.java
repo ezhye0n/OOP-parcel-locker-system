@@ -14,8 +14,8 @@ import java.util.Random;
  * 빈 칸을 탐색하고 인증코드를 발급하여 Package를 배정한다.
  *
  * 동기화 전략:
- * ExpiryMonitor와 동시에 칸 데이터에 접근할 수 있으므로,
- * lockerRepository를 공유 락으로 사용하여 데이터 충돌을 방지한다.
+ * LockerRepository의 public 메서드가 이미 synchronized로 선언되어 있으므로,
+ * Controller에서 별도의 synchronized 블록을 추가하지 않는다.
  */
 public class DepositController {
 
@@ -44,51 +44,48 @@ public class DepositController {
             return;
         }
 
-        synchronized (lockerRepository) {
-            // 해당 크기의 빈 칸 탐색
-            Locker availableLocker = findAvailableLocker(size);
+        // 해당 크기의 빈 칸 탐색
+        Locker availableLocker = findAvailableLocker(size);
 
-            // 빈 칸이 없으면 처리 중단
-            if (availableLocker == null) {
-                depositView.showResult("선택한 크기의 빈 칸이 없습니다.");
-                return;
-            }
-
-            // 인증코드 발급 및 Package 생성
-            String authCode = generateAuthCode();
-            String trackingNumber = generateTrackingNumber();
-            Package pkg = new Package(trackingNumber, recipient.trim(), authCode);
-
-            // 칸에 Package 배정
-            assignPackage(availableLocker, pkg);
-
-            // 변경된 데이터 파일에 저장
-            lockerRepository.save();
-
-            // 결과를 View에 전달
-            depositView.showResult(
-                "보관 완료!\n" +
-                "칸 번호: " + availableLocker.getLockerId() + "\n" +
-                "인증코드: " + authCode + "\n" +
-                "수령 시 인증코드를 반드시 기억해주세요."
-            );
+        // 빈 칸이 없으면 처리 중단
+        if (availableLocker == null) {
+            depositView.showResult("선택한 크기의 빈 칸이 없습니다.");
+            return;
         }
+
+        // 인증코드 발급 및 Package 생성
+        String authCode = generateAuthCode();
+        String trackingNumber = generateTrackingNumber();
+        Package pkg = new Package(trackingNumber, recipient.trim(), authCode);
+
+        // 칸에 Package 배정
+        availableLocker.assign(pkg);
+
+        // 변경된 데이터 파일에 저장
+        lockerRepository.save();
+
+        // 결과를 View에 전달 — HTML 태그로 줄바꿈 처리
+        depositView.showResult(
+            "<html>보관 완료!<br>" +
+            "칸 번호: " + availableLocker.getLockerId() + "<br>" +
+            "인증코드: " + authCode + "<br>" +
+            "수령 시 인증코드를 반드시 기억해주세요.</html>"
+        );
     }
 
     /**
      * 입력된 크기에 맞는 빈 칸을 탐색한다.
-     * 반드시 synchronized 블록 안에서 호출해야 한다.
+     * LockerRepository.getAvailableLockers()가 synchronized이므로
+     * 동시 접근이 발생해도 안전하다.
      *
      * @param size 칸 크기 ("소형" / "중형" / "대형")
      * @return 빈 칸이 있으면 해당 Locker, 없으면 null
      */
     private Locker findAvailableLocker(String size) {
         List<Locker> availableLockers = lockerRepository.getAvailableLockers(size);
-
         if (availableLockers.isEmpty()) {
             return null;
         }
-
         // 첫 번째 빈 칸 반환
         return availableLockers.get(0);
     }
@@ -96,9 +93,8 @@ public class DepositController {
     /**
      * 6자리 난수 인증코드를 생성한다.
      * 100000 ~ 999999 범위의 숫자를 문자열로 반환한다.
-     * 예: "472819"
      *
-     * @return 6자리 숫자 문자열
+     * @return 6자리 숫자 문자열 (예: "472819")
      */
     private String generateAuthCode() {
         int code = 100000 + RANDOM.nextInt(900000);
@@ -109,19 +105,9 @@ public class DepositController {
      * 송장번호를 생성한다.
      * 현재 시각 기반으로 고유한 번호를 생성한다.
      *
-     * @return 송장번호 문자열
+     * @return 송장번호 문자열 (예: "TRK1717383600000")
      */
     private String generateTrackingNumber() {
         return "TRK" + System.currentTimeMillis();
-    }
-
-    /**
-     * 탐색된 칸에 Package를 배정하고 칸 상태를 "사용 중"으로 변경한다.
-     *
-     * @param locker 배정할 칸
-     * @param pkg    배정할 Package 객체
-     */
-    private void assignPackage(Locker locker, Package pkg) {
-        locker.assign(pkg);
     }
 }

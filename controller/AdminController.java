@@ -1,7 +1,6 @@
 package controller;
 
 import model.Locker;
-import model.Package;
 import model.LockerRepository;
 import view.AdminView;
 
@@ -9,11 +8,17 @@ import java.util.List;
 
 /**
  * 관리자 기능을 처리하는 Controller.
- * 전체 칸 현황을 집계하여 AdminView에 전달한다.
+ * 전체 칸 현황 데이터를 Model에서 가져와 View에 전달한다.
  *
  * MVC 역할 분리 원칙:
- * Controller는 데이터 집계와 배열 변환만 담당하고,
- * 화면 표시 방식(JTable 구성, 셀 편집 여부 등)은 AdminView가 결정한다.
+ * Controller는 데이터를 가져오는 흐름만 제어하고,
+ * 데이터를 어떻게 표시할지(JTable 구성, 배열 변환)는 AdminView가 결정한다.
+ * Controller는 Model 타입(List<Locker>)을 그대로 View에 넘기므로
+ * View의 표시 방식이 바뀌어도 Controller를 수정하지 않아도 된다.
+ *
+ * 동기화 전략:
+ * LockerRepository의 public 메서드가 이미 synchronized로 선언되어 있으므로,
+ * Controller에서 별도의 synchronized 블록을 추가하지 않는다.
  */
 public class AdminController {
 
@@ -40,63 +45,16 @@ public class AdminController {
     }
 
     /**
-     * 전체 칸 현황을 집계하여 AdminView에 전달한다.
-     *
-     * 처리 순서:
-     * 1. 전체/사용 중/빈 칸/만료 개수를 집계하여 updateSummary()로 전달
-     * 2. 각 칸의 데이터를 2차원 배열로 변환하여 updateTable()로 전달
-     *
-     * Controller는 데이터 배열만 만들고,
-     * 이를 어떻게 보여줄지(JTable)는 AdminView가 결정한다.
+     * 전체 칸 목록을 Model에서 가져와 AdminView에 전달한다.
+     * Controller는 데이터 흐름만 제어하고,
+     * 데이터를 테이블에 어떻게 표시할지는 AdminView가 결정한다.
      */
     public void loadLockerStatus() {
         List<Locker> allLockers = lockerRepository.getAllLockers();
 
-        // 현황 카운트 집계
-        int totalCount   = allLockers.size();
-        int occupiedCount = 0;
-        int emptyCount   = 0;
-        int expiredCount = 0;
-
-        // 테이블에 표시할 데이터 배열 생성
-        // 컬럼 순서: 칸 번호 / 크기 / 수령인 / 보관일 / 상태
-        Object[][] tableData = new Object[totalCount][5];
-
-        for (int i = 0; i < allLockers.size(); i++) {
-            Locker locker = allLockers.get(i);
-            tableData[i][0] = locker.getLockerId();
-            tableData[i][1] = locker.getSizeDescription();
-
-            if (!locker.isOccupied()) {
-                // 빈 칸
-                emptyCount++;
-                tableData[i][2] = "-";
-                tableData[i][3] = "-";
-                tableData[i][4] = "비어있음";
-            } else {
-                Package pkg = locker.getAssignedPackage();
-                if (pkg != null && pkg.isExpired()) {
-                    // 만료된 칸
-                    expiredCount++;
-                    occupiedCount++;
-                    tableData[i][2] = pkg.getRecipient();
-                    tableData[i][3] = pkg.getStoredAt().toLocalDate().toString();
-                    tableData[i][4] = "만료";
-                } else if (pkg != null) {
-                    // 사용 중인 칸
-                    occupiedCount++;
-                    tableData[i][2] = pkg.getRecipient();
-                    tableData[i][3] = pkg.getStoredAt().toLocalDate().toString();
-                    tableData[i][4] = "사용 중";
-                }
-            }
-        }
-
-        // 요약 정보 View에 전달
-        adminView.updateSummary(totalCount, occupiedCount, emptyCount, expiredCount);
-
-        // 테이블 데이터 View에 전달 — 표시 방식은 AdminView가 결정
-        adminView.updateTable(tableData);
+        // View에 Locker 리스트를 그대로 전달한다.
+        // 배열 변환, 상태 문자열 생성 등 표시 관련 처리는 AdminView가 담당한다.
+        adminView.updateView(allLockers);
     }
 
     /**

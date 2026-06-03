@@ -1,15 +1,22 @@
 package view;
 
+import model.Locker;
+import model.Package;
+
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.*;
+import java.util.List;
 
 /**
  * 관리자 전용 화면.
  * 전체 칸 현황을 JTable로 표시하고 새로고침 기능을 제공한다.
- * Controller로부터 데이터 배열을 받아 테이블에 표시한다.
- * 화면 표시 방식(JTable 구성)은 View가 전적으로 담당한다.
+ *
+ * MVC 역할 분리 원칙:
+ * Controller로부터 List<Locker>를 받아 테이블 데이터로 변환하는 책임은 View가 가진다.
+ * Controller는 데이터 흐름만 제어하고, 화면 표시 방식은 View가 결정한다.
+ * 따라서 테이블 컬럼 구성이나 표시 형식이 바뀌어도 Controller를 수정하지 않아도 된다.
  */
 public class AdminView extends JFrame {
 
@@ -27,7 +34,6 @@ public class AdminView extends JFrame {
     private static final String[] COLUMNS = {"칸 번호", "크기", "수령인", "보관일", "상태"};
 
     public AdminView() {
-        // 프레임 기본 설정
         setTitle("관리자 모드");
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
@@ -51,13 +57,11 @@ public class AdminView extends JFrame {
         summaryPanel.add(emptyLabel);
         summaryPanel.add(expiredLabel);
 
-        // 제목 + 요약 정보를 위쪽에 배치
         JPanel topPanel = new JPanel(new GridLayout(2, 1, 10, 10));
         topPanel.add(titleLabel);
         topPanel.add(summaryPanel);
 
         // JTable 영역
-        // DefaultTableModel을 사용하여 데이터를 동적으로 업데이트할 수 있다.
         tableModel = new DefaultTableModel(COLUMNS, 0) {
             // 셀 편집 비활성화: 관리자 화면은 조회 전용이다.
             @Override
@@ -67,7 +71,7 @@ public class AdminView extends JFrame {
         };
         lockerTable = new JTable(tableModel);
         lockerTable.setRowHeight(24);
-        lockerTable.getTableHeader().setReorderingAllowed(false); // 컬럼 순서 변경 비활성화
+        lockerTable.getTableHeader().setReorderingAllowed(false);
         JScrollPane scrollPane = new JScrollPane(lockerTable);
 
         // 버튼 영역
@@ -81,46 +85,67 @@ public class AdminView extends JFrame {
         buttonPanel.add(refreshButton);
         buttonPanel.add(backButton);
 
-        // 프레임에 컴포넌트 추가
-        c.add(topPanel,     BorderLayout.NORTH);
-        c.add(scrollPane,   BorderLayout.CENTER);
-        c.add(buttonPanel,  BorderLayout.SOUTH);
+        c.add(topPanel,    BorderLayout.NORTH);
+        c.add(scrollPane,  BorderLayout.CENTER);
+        c.add(buttonPanel, BorderLayout.SOUTH);
 
         setSize(650, 450);
         setVisible(true);
     }
 
     /**
-     * 관리자 화면 상단의 요약 정보를 갱신한다.
-     * Controller가 집계한 카운트를 받아 각 레이블에 표시한다.
+     * Controller로부터 전달받은 Locker 리스트로 화면 전체를 갱신한다.
+     * 요약 카운트 집계와 테이블 데이터 변환을 View가 직접 담당한다.
+     * Controller는 List<Locker>만 넘기고 표시 방식은 View가 결정한다.
      *
-     * @param total   전체 보관함 수
-     * @param used    사용 중 보관함 수
-     * @param empty   빈 보관함 수
-     * @param expired 만료 보관함 수
+     * @param lockers 전체 Locker 리스트
      */
-    public void updateSummary(int total, int used, int empty, int expired) {
-        totalLabel.setText("전체 보관함 수: " + total);
-        usedLabel.setText("사용 중: " + used);
-        emptyLabel.setText("빈 보관함: " + empty);
-        expiredLabel.setText("만료 보관함: " + expired);
-    }
+    public void updateView(List<Locker> lockers) {
+        // 요약 카운트 집계 — 표시 목적이므로 View가 담당
+        int total    = lockers.size();
+        int occupied = 0;
+        int empty    = 0;
+        int expired  = 0;
 
-    /**
-     * 전체 칸 현황 데이터를 테이블에 표시한다.
-     * 기존 데이터를 초기화하고 새 데이터로 채운다.
-     * 데이터를 어떻게 표시할지(JTable)는 View가 결정한다.
-     *
-     * @param data Controller에서 전달받은 2차원 데이터 배열
-     */
-    public void updateTable(Object[][] data) {
         // 기존 테이블 데이터 초기화
         tableModel.setRowCount(0);
 
-        // 새 데이터 행 추가
-        for (Object[] row : data) {
-            tableModel.addRow(row);
+        for (Locker locker : lockers) {
+            // 카운트 집계
+            if (!locker.isOccupied()) {
+                empty++;
+            } else if (locker.hasExpiredPackage()) {
+                expired++;
+                occupied++;
+            } else {
+                occupied++;
+            }
+
+            // 테이블 행 데이터 구성 — 화면 표시 형식은 View가 결정
+            String recipient = "-";
+            String storedDate = "-";
+
+            if (locker.isOccupied() && locker.getAssignedPackage() != null) {
+                Package pkg = locker.getAssignedPackage();
+                recipient  = pkg.getRecipient();
+                storedDate = pkg.getStoredAt().toLocalDate().toString();
+            }
+
+            // 상태 문자열은 Model(Locker)이 결정한다
+            tableModel.addRow(new Object[]{
+                locker.getLockerId(),
+                locker.getSizeDescription(),
+                recipient,
+                storedDate,
+                locker.getStatusText()
+            });
         }
+
+        // 요약 레이블 갱신
+        totalLabel.setText("전체 보관함 수: " + total);
+        usedLabel.setText("사용 중: " + occupied);
+        emptyLabel.setText("빈 보관함: " + empty);
+        expiredLabel.setText("만료 보관함: " + expired);
     }
 
     /**
