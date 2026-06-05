@@ -12,9 +12,6 @@ import java.time.temporal.ChronoUnit;
  *
  * <p>상태는 boolean 여러 개가 아니라 PackageStatus enum 하나로 관리한다. 따라서
  * "만료이면서 동시에 수령 완료" 같은 모순된 상태가 만들어지지 않는다.</p>
- *
- * <p>송장번호(trackingNumber)를 고유 식별자로 보아 equals/hashCode를 재정의한다(6주차).
- * 덕분에 컬렉션에서 같은 택배를 값 기준으로 식별할 수 있다.</p>
  */
 public class Package implements Serializable {
 
@@ -24,7 +21,7 @@ public class Package implements Serializable {
     private final String recipient;         // 수령인 이름
     private final LocalDateTime storedAt;   // 보관 시각
     private final String authCode;          // 6자리 인증코드. 외부 노출 금지
-    private PackageStatus status;           // 현재 택배 상태
+    private volatile PackageStatus status;  // 현재 택배 상태 (멀티스레드 가시성 위해 volatile)
 
     /**
      * @param trackingNumber 송장번호
@@ -99,7 +96,7 @@ public class Package implements Serializable {
      * 택배를 만료 상태로 전환한다.
      * 이미 수령 완료된 택배는 만료 상태로 되돌리지 않는다.
      */
-    public void markAsExpired() {
+    public synchronized void markAsExpired() {
         if (status == PackageStatus.PICKED_UP) {
             return;
         }
@@ -110,7 +107,7 @@ public class Package implements Serializable {
      * 택배를 수령 완료 상태로 전환한다.
      * 만료된 택배는 일반 수령 완료로 바꿀 수 없도록 보호한다.
      */
-    public void markAsPickedUp() {
+    public synchronized void markAsPickedUp() {
         if (status == PackageStatus.EXPIRED) {
             throw new IllegalStateException("만료된 택배는 수령 완료 처리할 수 없습니다.");
         }
@@ -139,29 +136,6 @@ public class Package implements Serializable {
             throw new IllegalArgumentException("authCode는 6자리 숫자여야 합니다.");
         }
         return trimmed;
-    }
-
-    /**
-     * 송장번호가 같으면 같은 택배로 본다(6주차 equals 규칙).
-     */
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (!(o instanceof Package)) {
-            return false;
-        }
-        Package other = (Package) o;
-        return trackingNumber.equals(other.trackingNumber);
-    }
-
-    /**
-     * equals와 일관되도록 송장번호의 해시코드를 사용한다.
-     */
-    @Override
-    public int hashCode() {
-        return trackingNumber.hashCode();
     }
 
     @Override
