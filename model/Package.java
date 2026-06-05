@@ -12,6 +12,9 @@ import java.time.temporal.ChronoUnit;
  *
  * <p>상태는 boolean 여러 개가 아니라 PackageStatus enum 하나로 관리한다. 따라서
  * "만료이면서 동시에 수령 완료" 같은 모순된 상태가 만들어지지 않는다.</p>
+ *
+ * <p>송장번호(trackingNumber)를 고유 식별자로 보아 equals/hashCode를 재정의한다(6주차).
+ * 덕분에 컬렉션에서 같은 택배를 값 기준으로 식별할 수 있다.</p>
  */
 public class Package implements Serializable {
 
@@ -117,7 +120,7 @@ public class Package implements Serializable {
     /**
      * 화면이나 로그에 표시할 상태 문자열을 반환한다.
      *
-     * @return 만료, 수령 완료, 사용 중 중 하나
+     * @return 사용 중, 만료, 수령 완료 중 하나
      */
     public String getStatusText() {
         return status.getLabel();
@@ -136,6 +139,29 @@ public class Package implements Serializable {
             throw new IllegalArgumentException("authCode는 6자리 숫자여야 합니다.");
         }
         return trimmed;
+    }
+
+    /**
+     * 송장번호가 같으면 같은 택배로 본다(6주차 equals 규칙).
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof Package)) {
+            return false;
+        }
+        Package other = (Package) o;
+        return trackingNumber.equals(other.trackingNumber);
+    }
+
+    /**
+     * equals와 일관되도록 송장번호의 해시코드를 사용한다.
+     */
+    @Override
+    public int hashCode() {
+        return trackingNumber.hashCode();
     }
 
     @Override
