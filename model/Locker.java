@@ -3,14 +3,13 @@ package model;
 import java.io.Serializable;
 
 /**
- * 모든 택배함이 공통으로 가지는 상태와 동작을 정의하는 추상 클래스.
+ * 모든 택배함의 공통 상태·동작을 정의하는 추상 클래스.
  *
- * <p>소형/중형/대형 택배함은 이 클래스를 상속하고, 크기별 설명은 getSizeDescription()을
- * 오버라이딩하여 다형적으로 제공한다.</p>
- *
- * <p>정렬을 위해 Comparable을 구현하여 칸 ID 기준 자연 순서를 제공한다(6주차 compareTo).
- * 또한 기존의 occupied(boolean) 필드를 제거하고 assignedPackage의 존재 여부로 사용 여부를
- * 파생시켜, 두 필드가 어긋나는 모순 상태를 원천 차단했다(단일 진실원천).</p>
+ * 설계 의도:
+ * - 크기별 차이(getSizeDescription)는 하위 클래스가 오버라이딩해 다형적으로 제공한다.
+ * - occupied(boolean) 필드를 두지 않고 assignedPackage 유무로 사용 여부를 파생시켜,
+ *   두 필드가 어긋나는 모순 상태를 차단한다(단일 진실원천).
+ * - 칸 ID 정렬을 위해 Comparable을 구현한다(6주차).
  */
 public abstract class Locker implements Serializable, Comparable<Locker> {
 
@@ -18,7 +17,7 @@ public abstract class Locker implements Serializable, Comparable<Locker> {
 
     private final String lockerId;       // 칸 고유 ID (예: S-01, M-03, L-05)
     private final LockerSize size;       // 칸 크기. 문자열 대신 enum으로 관리하여 타입 안전성을 높인다.
-    private Package assignedPackage;      // 현재 배정된 택배. 비어 있으면 null (= 사용 중 여부의 단일 진실원천)
+    private volatile Package assignedPackage; // 배정된 택배(없으면 null). 멀티스레드 가시성 위해 volatile
 
     protected Locker(String lockerId, LockerSize size) {
         this.lockerId = requireText(lockerId, "lockerId");
@@ -60,7 +59,7 @@ public abstract class Locker implements Serializable, Comparable<Locker> {
     /**
      * 칸에 Package를 배정한다. 이미 사용 중인 칸에는 배정할 수 없게 하여 무결성을 보장한다.
      */
-    public void assign(Package pkg) {
+    public synchronized void assign(Package pkg) {
         if (pkg == null) {
             throw new IllegalArgumentException("배정할 Package는 null일 수 없습니다.");
         }
@@ -74,7 +73,7 @@ public abstract class Locker implements Serializable, Comparable<Locker> {
     }
 
     /** 칸을 비어 있는 상태로 초기화한다(수령 완료 또는 관리자 처리 시). */
-    public void release() {
+    public synchronized void release() {
         this.assignedPackage = null;
     }
 

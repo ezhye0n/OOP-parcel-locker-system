@@ -15,18 +15,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 전체 택배함 데이터를 관리하고 파일 I/O를 담당하는 Repository 클래스.
+ * 전체 택배함 데이터를 관리하고 파일 I/O를 담당하는 Repository.
  *
- * <p>Controller는 파일 저장 방식이나 내부 컬렉션 구조를 알 필요 없이 이 클래스의
- * 메서드만 호출한다. 이를 통해 Model과 Controller의 결합도를 낮춘다.</p>
- *
- * <p><b>동기화 전략(11주차):</b> 보관/수령/관리자/만료 감지가 같은 Repository를 공유하므로
- * 상태를 바꾸는 public 메서드를 synchronized로 선언한다. 보관·수령 요청은 Swing EDT 단일
- * 스레드에서 직렬 처리되고, 동시에 도는 만료 감지 스레드도 synchronized 메서드만 호출하므로
- * 같은 칸 상태에 동시에 접근하지 않는다.</p>
- *
- * <p>참고: 파일 입출력은 강의 범위를 넘는 부분이라 객체 직렬화로 자습해 구현했고,
- * 파일이 없거나 손상되면 기본 데이터로 자동 복구한다.</p>
+ * 설계 의도:
+ * - Controller는 저장 방식·내부 컬렉션을 모른 채 메서드만 호출한다(결합도 ↓).
+ * - 만료 감지 스레드와 사용자 처리가 같은 데이터를 공유하므로 public 메서드를
+ *   synchronized로 선언해 동시 접근을 막는다(11주차).
+ * - 파일 I/O는 객체 직렬화로 구현하고, 파일이 없거나 손상되면 기본 데이터로 복구한다.
  */
 public class LockerRepository implements Serializable {
 
@@ -125,12 +120,7 @@ public class LockerRepository implements Serializable {
         return result;
     }
 
-    /**
-     * 보관 기간을 초과한 택배들을 만료 상태로 전환한다. ExpiryMonitor가 주기적으로 호출한다.
-     *
-     * @param maxStorageDays 최대 보관 일수
-     * @return 새로 만료 처리된 택배 수
-     */
+    /** 보관 기간을 초과한 택배들을 만료 처리하고, 새로 만료된 개수를 반환한다(ExpiryMonitor가 호출). */
     public synchronized int markOverduePackagesAsExpired(int maxStorageDays) {
         int expiredCount = 0;
         for (Locker locker : lockers.values()) {

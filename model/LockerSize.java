@@ -3,10 +3,8 @@ package model;
 import java.io.Serializable;
 
 /**
- * 택배함 크기를 문자열 대신 명확한 타입으로 관리하기 위한 enum.
- *
- * <p>Controller/View와의 호환을 위해 화면 표시용 한글 이름은 getLabel()로 제공한다.
- * 내부 Model에서는 LockerSize를 사용하므로 잘못된 크기 문자열이 섞이는 문제를 줄일 수 있다.</p>
+ * 택배함 크기를 문자열 대신 타입으로 관리하는 enum.
+ * 잘못된 크기 문자열이 섞이는 문제를 막고, 화면 표시용 한글 이름은 getLabel()로 제공한다.
  */
 public enum LockerSize implements Serializable {
     SMALL("소형", "S", "소형 (가로 20cm 이하)"),
@@ -35,12 +33,7 @@ public enum LockerSize implements Serializable {
         return description;
     }
 
-    /**
-     * View/Controller에서 전달되는 한글 크기 문자열을 enum으로 변환한다.
-     *
-     * @param label 크기 문자열 (소형, 중형, 대형)
-     * @return 해당 LockerSize
-     */
+    /** View/Controller가 넘기는 한글 크기 문자열을 enum으로 변환한다. */
     public static LockerSize fromLabel(String label) {
         if (label == null || label.trim().isEmpty()) {
             throw new IllegalArgumentException("칸 크기는 비어 있을 수 없습니다.");

@@ -5,13 +5,12 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 
 /**
- * 택배 한 건의 정보를 저장하고 상태 규칙을 관리하는 Model 클래스.
+ * 택배 한 건의 정보와 상태 규칙을 관리하는 Model 클래스.
  *
- * <p>송장번호, 수령인, 보관 시각, 인증코드, 현재 상태를 가진다.
- * 인증코드는 외부에 직접 반환하지 않고 verifyAuthCode 메서드를 통해서만 검증한다.</p>
- *
- * <p>상태는 boolean 여러 개가 아니라 PackageStatus enum 하나로 관리한다. 따라서
- * "만료이면서 동시에 수령 완료" 같은 모순된 상태가 만들어지지 않는다.</p>
+ * 설계 의도:
+ * - 인증코드는 getter로 노출하지 않고 verifyAuthCode()로만 검증한다(정보 은닉).
+ * - 상태를 boolean 여러 개가 아닌 PackageStatus enum 하나로 관리해
+ *   "만료이면서 동시에 수령 완료" 같은 모순 상태를 차단한다(무결성).
  */
 public class Package implements Serializable {
 
@@ -21,13 +20,8 @@ public class Package implements Serializable {
     private final String recipient;         // 수령인 이름
     private final LocalDateTime storedAt;   // 보관 시각
     private final String authCode;          // 6자리 인증코드. 외부 노출 금지
-    private volatile PackageStatus status;  // 현재 택배 상태 (멀티스레드 가시성 위해 volatile)
+    private volatile PackageStatus status;  // 현재 상태. 멀티스레드 가시성 위해 volatile
 
-    /**
-     * @param trackingNumber 송장번호
-     * @param recipient      수령인 이름
-     * @param authCode       발급된 6자리 인증코드
-     */
     public Package(String trackingNumber, String recipient, String authCode) {
         this.trackingNumber = requireText(trackingNumber, "trackingNumber");
         this.recipient = requireText(recipient, "recipient");
@@ -64,13 +58,7 @@ public class Package implements Serializable {
         return status == PackageStatus.PICKED_UP;
     }
 
-    /**
-     * 입력된 코드가 저장된 인증코드와 일치하는지 검증한다.
-     * 인증코드 자체를 getter로 제공하지 않아 정보 은닉을 유지한다.
-     *
-     * @param inputCode 사용자가 입력한 코드
-     * @return 인증코드가 일치하면 true, 아니면 false
-     */
+    /** 인증코드 일치 여부만 반환한다. 코드 자체는 노출하지 않아 정보 은닉을 유지한다. */
     public boolean verifyAuthCode(String inputCode) {
         if (inputCode == null) {
             return false;
@@ -78,12 +66,7 @@ public class Package implements Serializable {
         return authCode.equals(inputCode.trim());
     }
 
-    /**
-     * 보관 시각 기준으로 최대 보관 일수를 초과했는지 확인한다.
-     *
-     * @param maxStorageDays 최대 보관 일수
-     * @return 초과했으면 true
-     */
+    /** 보관 시각 기준으로 최대 보관 일수를 초과했는지 확인한다. */
     public boolean isOverStorageLimit(int maxStorageDays) {
         if (maxStorageDays < 0) {
             throw new IllegalArgumentException("maxStorageDays는 음수일 수 없습니다.");
@@ -92,10 +75,7 @@ public class Package implements Serializable {
         return storedDays >= maxStorageDays;
     }
 
-    /**
-     * 택배를 만료 상태로 전환한다.
-     * 이미 수령 완료된 택배는 만료 상태로 되돌리지 않는다.
-     */
+    /** 만료 상태로 전환. 단, 이미 수령 완료된 택배는 되돌리지 않는다. */
     public synchronized void markAsExpired() {
         if (status == PackageStatus.PICKED_UP) {
             return;
@@ -103,10 +83,7 @@ public class Package implements Serializable {
         this.status = PackageStatus.EXPIRED;
     }
 
-    /**
-     * 택배를 수령 완료 상태로 전환한다.
-     * 만료된 택배는 일반 수령 완료로 바꿀 수 없도록 보호한다.
-     */
+    /** 수령 완료 상태로 전환. 단, 만료된 택배는 수령 처리할 수 없다. */
     public synchronized void markAsPickedUp() {
         if (status == PackageStatus.EXPIRED) {
             throw new IllegalStateException("만료된 택배는 수령 완료 처리할 수 없습니다.");
@@ -114,11 +91,6 @@ public class Package implements Serializable {
         this.status = PackageStatus.PICKED_UP;
     }
 
-    /**
-     * 화면이나 로그에 표시할 상태 문자열을 반환한다.
-     *
-     * @return 사용 중, 만료, 수령 완료 중 하나
-     */
     public String getStatusText() {
         return status.getLabel();
     }
