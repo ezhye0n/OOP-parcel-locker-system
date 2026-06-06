@@ -34,7 +34,7 @@ public class PickupController {
 
     /**
      * 수령 요청의 진입점.
-     * 형식 검증 → 코드 일치 확인 → 만료 확인 → 칸 해제 → 파일 저장 순으로 처리한다.
+     * 형식 검증 → 코드 일치 확인 → 수령·만료 상태 확인 → 칸 해제 → 파일 저장 순으로 처리한다.
      *
      * @param authCode 사용자가 입력한 6자리 인증코드
      */
@@ -54,7 +54,14 @@ public class PickupController {
             return;
         }
 
+        // 칸에 배정된 Package 조회
+        // isOccupied() 체크 후에도 getAssignedPackage()가 null을 반환하는
+        // 예외적 상황을 방어하기 위해 null 체크를 추가한다.
         Package pkg = targetLocker.getAssignedPackage();
+        if (pkg == null) {
+            pickupView.showResult("인증코드가 올바르지 않습니다.");
+            return;
+        }
 
         // 이미 수령된 택배인지 확인
         if (pkg.isPickedUp()) {
@@ -73,10 +80,12 @@ public class PickupController {
         releaseLocker(targetLocker);
         lockerRepository.save();
 
+        // 결과를 View에 전달
+        // 줄바꿈 포맷은 View(showResult)가 처리하도록 개행 문자로 전달한다.
         pickupView.showResult(
-            "<html>수령 완료!<br>" +
-            "수령인: " + pkg.getRecipient() + "<br>" +
-            "칸 번호: " + targetLocker.getLockerId() + "</html>"
+            "수령 완료!\n" +
+            "수령인: " + pkg.getRecipient() + "\n" +
+            "칸 번호: " + targetLocker.getLockerId()
         );
     }
 
@@ -116,6 +125,7 @@ public class PickupController {
 
     /**
      * 수령 완료 후 칸 상태를 "비어있음"으로 전환한다.
+     * 향후 해제 전후 처리(로깅, 알림 등)를 추가하기 위한 확장 포인트로 분리했다.
      *
      * @param locker 해제할 칸
      */

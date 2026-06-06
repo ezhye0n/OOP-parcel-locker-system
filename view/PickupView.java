@@ -73,7 +73,7 @@ public class PickupView extends JFrame {
      * @param message 표시할 메시지
      */
     public void showResult(String message) {
-        resultLabel.setText(message);
+    resultLabel.setText("<html>" + message.replace("\n", "<br>") + "</html>");
     }
 
     /**

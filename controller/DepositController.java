@@ -59,17 +59,20 @@ public class DepositController {
         Package pkg = new Package(trackingNumber, recipient.trim(), authCode);
 
         // 칸에 Package 배정
+        // assign()은 이미 사용 중인 칸에 배정 시 IllegalStateException을 던지도록 Model에서 보호한다.
+        // getAvailableLockers()가 synchronized이므로 동시 접근에서도 빈 칸이 보장된다.
         availableLocker.assign(pkg);
 
         // 변경된 데이터 파일에 저장
         lockerRepository.save();
 
-        // 결과를 View에 전달 — HTML 태그로 줄바꿈 처리
+        // 결과를 View에 전달
+        // 줄바꿈 포맷은 View(showResult)가 처리하도록 개행 문자로 전달한다.
         depositView.showResult(
-            "<html>보관 완료!<br>" +
-            "칸 번호: " + availableLocker.getLockerId() + "<br>" +
-            "인증코드: " + authCode + "<br>" +
-            "수령 시 인증코드를 반드시 기억해주세요.</html>"
+            "보관 완료!\n" +
+            "칸 번호: " + availableLocker.getLockerId() + "\n" +
+            "인증코드: " + authCode + "\n" +
+            "수령 시 인증코드를 반드시 기억해주세요."
         );
     }
 

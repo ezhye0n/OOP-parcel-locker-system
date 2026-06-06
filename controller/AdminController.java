@@ -54,6 +54,7 @@ public class AdminController {
 
     /**
      * 만료 상태인 칸 목록만 필터링하여 반환한다.
+     * 향후 만료 칸 별도 표시 기능 추가 시 사용할 확장 포인트로 정의해두었다.
      *
      * @return 만료된 Locker 리스트
      */
