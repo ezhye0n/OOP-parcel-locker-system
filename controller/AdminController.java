@@ -19,10 +19,9 @@ import java.util.List;
  * Controller에서 별도의 synchronized 블록을 추가하지 않는다.
  *
  * 보안 주의:
- * ADMIN_PASSWORD가 현재 소스코드에 하드코딩되어 있다.
- * 실제 운영 환경에서는 소스코드에 비밀번호를 직접 작성하면 안 된다.
- * 환경 변수(System.getenv) 또는 외부 설정 파일에서 읽어오는 방식으로 교체해야 한다.
- * 예: String pw = System.getenv("ADMIN_PASSWORD");
+ * ADMIN_PASSWORD는 환경변수(ADMIN_PASSWORD)에서 먼저 읽어온다.
+ * 환경변수가 설정되지 않은 경우에만 기본값 "admin1234"를 사용한다.
+ * 실제 운영 환경에서는 반드시 환경변수를 설정해야 한다.
  */
 public class AdminController {
 
@@ -31,9 +30,13 @@ public class AdminController {
 
     /**
      * 관리자 비밀번호.
-     * TODO: 운영 환경에서는 System.getenv("ADMIN_PASSWORD") 등으로 교체할 것.
+     * 환경변수 ADMIN_PASSWORD가 설정되어 있으면 그 값을 사용하고,
+     * 없으면 개발용 기본값 "admin1234"를 사용한다.
      */
-    private static final String ADMIN_PASSWORD = "admin1234";
+    private static final String ADMIN_PASSWORD =
+            System.getenv("ADMIN_PASSWORD") != null
+            ? System.getenv("ADMIN_PASSWORD")
+            : "admin1234";
 
     public AdminController(LockerRepository lockerRepository, AdminView adminView) {
         this.lockerRepository = lockerRepository;
