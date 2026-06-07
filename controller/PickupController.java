@@ -17,15 +17,25 @@ import java.util.List;
  * Controller에서 별도의 synchronized 블록을 추가하지 않는다.
  *
  * 예외 처리:
- * - 형식 오류:    "인증코드는 6자리 숫자입니다."
- * - 코드 불일치: "인증코드가 올바르지 않습니다."
- * - 만료된 택배: "보관 기간이 만료된 택배입니다. 관리자에게 문의하세요."
- * - 이미 수령됨: "이미 수령된 택배입니다."
+ * - 형식 오류:    ERR_INVALID_FORMAT
+ * - 코드 불일치: ERR_CODE_MISMATCH
+ * - 처리 오류:   ERR_PROCESSING
+ * - 이미 수령됨: ERR_ALREADY_PICKED_UP
+ * - 만료된 택배: ERR_EXPIRED
+ * - 저장 실패:   ERR_SAVE_FAILED
  */
 public class PickupController {
 
     private final LockerRepository lockerRepository;
     private final PickupView pickupView;
+
+    // 오류 메시지를 상수로 선언하여 오타를 방지하고 수정을 한 곳에서 관리한다.
+    private static final String ERR_INVALID_FORMAT    = "인증코드는 6자리 숫자입니다.";
+    private static final String ERR_CODE_MISMATCH     = "인증코드가 올바르지 않습니다.";
+    private static final String ERR_PROCESSING        = "처리 중 오류가 발생했습니다. 다시 시도해주세요.";
+    private static final String ERR_ALREADY_PICKED_UP = "이미 수령된 택배입니다.";
+    private static final String ERR_EXPIRED           = "보관 기간이 만료된 택배입니다. 관리자에게 문의하세요.";
+    private static final String ERR_SAVE_FAILED       = "저장 중 오류가 발생했습니다. 관리자에게 문의하세요.";
 
     public PickupController(LockerRepository lockerRepository, PickupView pickupView) {
         this.lockerRepository = lockerRepository;
@@ -41,7 +51,7 @@ public class PickupController {
     public void handlePickup(String authCode) {
         // 인증코드 형식 검증: 6자리 숫자인지 확인
         if (!isValidCodeFormat(authCode)) {
-            pickupView.showResult("인증코드는 6자리 숫자입니다.");
+            pickupView.showResult(ERR_INVALID_FORMAT);
             return;
         }
 
@@ -50,7 +60,7 @@ public class PickupController {
 
         // 코드 불일치: 해당 칸 없음
         if (targetLocker == null) {
-            pickupView.showResult("인증코드가 올바르지 않습니다.");
+            pickupView.showResult(ERR_CODE_MISMATCH);
             return;
         }
 
@@ -60,28 +70,36 @@ public class PickupController {
         // (예: 매우 드물지만 2명 동시 접근으로 방금 막 다른 누군가가 이미 수령해버린 상황)
         Package pkg = targetLocker.getAssignedPackage();
         if (pkg == null) {
-            pickupView.showResult("처리 중 오류가 발생했습니다. 다시 시도해주세요.");
+            pickupView.showResult(ERR_PROCESSING);
             return;
         }
 
         // 이미 수령된 택배인지 확인
         if (pkg.isPickedUp()) {
-            pickupView.showResult("이미 수령된 택배입니다.");
+            pickupView.showResult(ERR_ALREADY_PICKED_UP);
             return;
         }
 
         // 만료 여부 확인 — Model(Package)이 상태 규칙을 가진다
         if (pkg.isExpired()) {
-            pickupView.showResult("보관 기간이 만료된 택배입니다. 관리자에게 문의하세요.");
+            pickupView.showResult(ERR_EXPIRED);
             return;
         }
 
-        // 수령 처리: Package 상태 변경 → 칸 해제 → 파일 저장
+        // 수령 처리: Package 상태 변경 → 칸 해제
         pkg.markAsPickedUp();
         releaseLocker(targetLocker);
-        lockerRepository.save();
 
-        // 결과를 View에 전달
+        // 변경된 데이터 파일에 저장
+        // 저장 실패 시 수령은 완료됐지만 데이터가 유실될 수 있으므로, 사용자에게 즉시 안내한다.
+        try {
+            lockerRepository.save();
+        } catch (Exception e) {
+            pickupView.showResult(ERR_SAVE_FAILED);
+            return;
+        }
+
+        // 수령 성공 결과를 View에 전달 — 표시 포맷은 View가 결정한다
         pickupView.showResult(
             "수령 완료!\n" +
             "수령인: " + pkg.getRecipient() + "\n" +

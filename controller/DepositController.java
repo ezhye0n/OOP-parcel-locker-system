@@ -30,6 +30,12 @@ public class DepositController {
 
     private static final Random RANDOM = new Random();
 
+    // 오류 메시지를 상수로 선언하여 오타를 방지하고 수정을 한 곳에서 관리한다.
+    private static final String ERR_EMPTY_RECIPIENT = "수령인 이름을 입력해주세요.";
+    private static final String ERR_NO_AVAILABLE_LOCKER = "선택한 크기의 빈 칸이 없습니다.";
+    private static final String ERR_ASSIGN_FAILED = "칸 배정 중 오류가 발생했습니다. 다시 시도해주세요.";
+    private static final String ERR_SAVE_FAILED = "저장 중 오류가 발생했습니다. 관리자에게 문의하세요.";
+
     public DepositController(LockerRepository lockerRepository, DepositView depositView) {
         this.lockerRepository = lockerRepository;
         this.depositView = depositView;
@@ -46,7 +52,7 @@ public class DepositController {
     public void handleDeposit(String recipient, LockerSize size) {
         // 입력값 검증: 수령인 이름이 비어있으면 처리 중단
         if (recipient == null || recipient.trim().isEmpty()) {
-            depositView.showError("수령인 이름을 입력해주세요.");
+            depositView.showError(ERR_EMPTY_RECIPIENT);
             return;
         }
 
@@ -55,7 +61,7 @@ public class DepositController {
 
         // 빈 칸이 없으면 처리 중단
         if (availableLocker == null) {
-            depositView.showError("선택한 크기의 빈 칸이 없습니다.");
+            depositView.showError(ERR_NO_AVAILABLE_LOCKER);
             return;
         }
 
@@ -66,10 +72,22 @@ public class DepositController {
 
         // 칸에 Package 배정
         // assign()은 이미 사용 중인 칸에 배정 시 IllegalStateException을 던지도록 Model에서 보호한다.
-        availableLocker.assign(pkg);
+        // 동시 요청으로 방금 막 다른 누군가가 같은 칸을 선점한 경우를 대비해 예외를 잡아 처리한다.
+        try {
+            availableLocker.assign(pkg);
+        } catch (IllegalStateException e) {
+            depositView.showError(ERR_ASSIGN_FAILED);
+            return;
+        }
 
         // 변경된 데이터 파일에 저장
-        lockerRepository.save();
+        // 저장 실패 시 배정은 완료됐지만 데이터가 유실될 수 있으므로, 사용자에게 즉시 안내한다.
+        try {
+            lockerRepository.save();
+        } catch (Exception e) {
+            depositView.showError(ERR_SAVE_FAILED);
+            return;
+        }
 
         // 칸 번호와 인증코드를 View에 전달 — 표시 포맷은 View가 결정한다
         depositView.showSuccess(availableLocker.getLockerId(), authCode);
