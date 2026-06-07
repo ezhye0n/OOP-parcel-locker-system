@@ -46,6 +46,8 @@ public class Main {
                 DepositView depositView = new DepositView();
                 DepositController depositController = new DepositController(lockerRepository, depositView);
 
+                // getSelectedSize()가 LockerSize enum을 반환하므로
+                // handleDeposit()에 타입 안전하게 전달할 수 있다
                 depositView.addDepositListener(depositEvent ->
                     depositController.handleDeposit(
                         depositView.getRecipient(),

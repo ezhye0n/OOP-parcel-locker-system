@@ -11,6 +11,11 @@ import model.LockerRepository;
  * LockerRepository의 markOverduePackagesAsExpired()가 이미 synchronized로
  * 선언되어 있으므로, Controller에서 별도로 synchronized 블록을 추가하지 않는다.
  * Model이 동기화 책임을 가지고, Controller는 흐름 제어만 담당한다.
+ *
+ * InterruptedException 처리:
+ * Thread.sleep()이 인터럽트되면 스레드의 interrupted 상태가 소비된다.
+ * interrupt()를 다시 호출하여 인터럽트 상태를 복원함으로써
+ * 상위 계층이 인터럽트 여부를 인지할 수 있도록 한다.
  */
 public class ExpiryMonitor implements Runnable {
 
@@ -20,11 +25,11 @@ public class ExpiryMonitor implements Runnable {
     // ExpiryMonitor 스레드가 변경을 즉시 감지하도록 보장한다.
     private volatile boolean stopped = false;
 
-    /** 만료 감지 주기 (테스트용 5초) */
-    private static final long CHECK_INTERVAL_MS = 5_000;
+    /** 만료 감지 주기 (1분) */
+    private static final long CHECK_INTERVAL_MS = 60_000;
 
-    /** 보관 기간 제한 (테스트용 0일) */
-    private static final int MAX_STORAGE_DAYS = 0;
+    /** 최대 보관 일수(3일). 이 기간을 초과하면 만료 상태로 전환된다. */
+    private static final int MAX_STORAGE_DAYS = 3;
 
     public ExpiryMonitor(LockerRepository lockerRepository) {
         this.lockerRepository = lockerRepository;
@@ -41,7 +46,9 @@ public class ExpiryMonitor implements Runnable {
             try {
                 Thread.sleep(CHECK_INTERVAL_MS);
             } catch (InterruptedException e) {
-                // 인터럽트 발생 시 스레드를 안전하게 종료한다
+                // InterruptedException 발생 시 interrupted 상태가 소비되므로
+                // interrupt()를 다시 호출하여 인터럽트 상태를 복원한 뒤 종료한다.
+                Thread.currentThread().interrupt();
                 stopped = true;
             }
         }
@@ -50,7 +57,6 @@ public class ExpiryMonitor implements Runnable {
     /**
      * 보관 기간을 초과한 택배를 만료 상태로 전환한다.
      * 기간 계산과 상태 변경은 Model(LockerRepository)에 위임한다.
-     * Model의 synchronized 메서드가 동시 접근을 제어한다.
      */
     private void checkExpiry() {
         lockerRepository.markOverduePackagesAsExpired(MAX_STORAGE_DAYS);

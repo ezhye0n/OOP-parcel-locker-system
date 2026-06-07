@@ -17,13 +17,22 @@ import java.util.List;
  * 동기화 전략:
  * LockerRepository의 public 메서드가 이미 synchronized로 선언되어 있으므로,
  * Controller에서 별도의 synchronized 블록을 추가하지 않는다.
+ *
+ * 보안 주의:
+ * ADMIN_PASSWORD가 현재 소스코드에 하드코딩되어 있다.
+ * 실제 운영 환경에서는 소스코드에 비밀번호를 직접 작성하면 안 된다.
+ * 환경 변수(System.getenv) 또는 외부 설정 파일에서 읽어오는 방식으로 교체해야 한다.
+ * 예: String pw = System.getenv("ADMIN_PASSWORD");
  */
 public class AdminController {
 
     private final LockerRepository lockerRepository;
     private final AdminView adminView;
 
-    /** 관리자 비밀번호 */
+    /**
+     * 관리자 비밀번호.
+     * TODO: 운영 환경에서는 System.getenv("ADMIN_PASSWORD") 등으로 교체할 것.
+     */
     private static final String ADMIN_PASSWORD = "admin1234";
 
     public AdminController(LockerRepository lockerRepository, AdminView adminView) {
@@ -54,6 +63,7 @@ public class AdminController {
 
     /**
      * 만료 상태인 칸 목록만 필터링하여 반환한다.
+     * 향후 만료 칸 별도 표시 기능 추가 시 사용할 "확장 포인트"로 정의해두었다.
      *
      * @return 만료된 Locker 리스트
      */
