@@ -1,13 +1,13 @@
-# 객체지향을 적용한 무인 택배함 시스템
+# OOP Parcel Locker System
 
 > 2026학년도 1학기 객체지향프로그래밍 팀 프로젝트
 
 무인 택배함 소프트웨어 시뮬레이션 시스템.  
-택배 보관·수령·만료 감지·관리자 현황 조회 기능을 MVC 패턴으로 구현.
+택배 보관·수령·만료 감지·관리자 현황 조회 기능을** MVC** 패턴으로 구현.
 
 ---
 
-## 주요 기능
+## Features
 
 - 택배 보관 및 6자리 인증코드 발급
 - 인증코드로 택배 수령
@@ -34,14 +34,13 @@
 
 | 파트 | 이름 | 역할 |
 |------|------|------|
-| Controller · 조장 | 이지현 | DepositController, PickupController, AdminController, ExpiryMonitor, Main 구현 / 전체 뼈대 코드, 전체 통합·오류 테스트·수정 |
+| Controller · 조장 | 이지현 | DepositController, PickupController, AdminController, ExpiryMonitor, Main 구현 / 전체 뼈대 코드, 전체 통합·오류 테스트·수정, docs |
 | View | 류채은 | MainMenuView, DepositView, PickupView, AdminView 구현 / Swing GUI 설계, JTable 관리자 현황판 구현 |
 | Model | 안서희 | Locker 계층, Package, PackageStatus, LockerSize, User, LockerRepository 구현 / 파일 I/O 직렬화 설계, synchronized 동기화 구현 |
 
 ---
 
-## 프로젝트 구조
-
+## Project Structure
 ```
 oop-parcel-locker-system/
 ├── Main.java
@@ -69,7 +68,7 @@ oop-parcel-locker-system/
 
 ---
 
-## ▶ 실행 방법
+## ▶ Getting Started
 
 ```bash
 # 컴파일
