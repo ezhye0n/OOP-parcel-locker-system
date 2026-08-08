@@ -34,7 +34,7 @@
 
 | 파트 | 이름 | 역할 |
 |------|------|------|
-| Controller · 조장 | 이지현 | DepositController, PickupController, AdminController, ExpiryMonitor, Main 구현 / 전체 뼈대 코드, 전체 통합·오류 테스트·수정 |
+| Controller | 이지현(조장) | DepositController, PickupController, AdminController, ExpiryMonitor, Main 구현 / 전체 뼈대 코드, 전체 통합·오류 테스트·수정 |
 | View | 류채은 | MainMenuView, DepositView, PickupView, AdminView 구현 / Swing GUI 설계, JTable 관리자 현황판 구현 |
 | Model | 안서희 | Locker 계층, Package, PackageStatus, LockerSize, User, LockerRepository 구현 / 파일 I/O 직렬화 설계, synchronized 동기화 구현 |
 
